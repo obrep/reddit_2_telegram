@@ -1,0 +1,5 @@
+# VSCode folder
+.vscode/
+
+# Venv
+telebot/
