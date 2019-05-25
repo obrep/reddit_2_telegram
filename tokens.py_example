@@ -1,0 +1,13 @@
+# Reddit
+# Application
+
+client_id = "from application's site (reddit account)"
+client_secret = "from application's site (reddit account)"
+user_agent='user_agent'
+
+# Personal
+username = 'reddit_username'
+password = 'reddit_password'
+
+### Telegram
+telegram_token = 'TELEGRAM API key'
