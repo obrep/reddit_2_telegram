@@ -10,6 +10,7 @@ from telegram import ParseMode
 import praw
 # Formatting functions
 from helpers import * 
+from messages import *
 
 
 # Logger setup
@@ -77,7 +78,7 @@ class RedditBot():
 
     # Commands actions
     def start(self, update, context):
-        context.bot.send_message(chat_id=update.message.chat_id, text="Hello. I'm a bot, please talk to me!")
+        context.bot.send_message(chat_id=update.message.chat_id, text=start_msg)
     
     def serveJoke(self, update, context):
         logger.info("Received joke command")
@@ -93,7 +94,7 @@ class RedditBot():
 
 
     def help(self, update, context):
-        context.bot.send_message(chat_id=update.message.chat_id, text="Hello. These are the available options:")
+        context.bot.send_message(chat_id=update.message.chat_id, text=help_msg)
 
     def echo(self, update, context):
         logger.info("Received message: '%s' (echo)", update.message.text)
