@@ -78,7 +78,8 @@ class RedditBot():
 
     def unknown(self, update, context):
         logger.info("Received Unknown command: '%s'", update.message.text)
-        context.bot.send_message(chat_id=update.message.chat_id, text="Sorry, I didn't understand that command.")
+        unknown_msg = "Sorry, I didn't understand that command."
+        context.bot.send_message(chat_id=update.message.chat_id, text=unknown_msg)
 
     def fetch(self, update, context):
         logger.info("Received message: '%s' (fetch)", update.message.text)
@@ -110,8 +111,9 @@ class RedditBot():
             logger.info("Subreddit set to %s" % reddit.subreddit(name).display_name)
             self.subreddit = name
         except:  # to-do: specify exceptions
+            exception_msg= "Invalid subreddit chosen. /r/{} does not exist.Please try another one, or one of the predefined commands (\\help for full list).".format(name)
             context.bot.sendMessage(chat_id=self.chat_id,
-                                    text="Invalid subreddit chosen. /r/{} does not exist.Please try another one, or one of the predefined commands (\\help for full list).".format(name))
+                                    text=exception_msg)
             self.subreddit = None
             logger.warning("Invalid /r/%s" % name)
             
@@ -125,31 +127,28 @@ class RedditBot():
 
     def show_submission(self, update, context):
 
-        def make_snippet():
-            url = self.submission.permalink.replace('www.reddit.', 'm.reddit.')
-            comments = len(self.submission.comments)
-            timestamp = getTimeAgo(self.submission.created_utc)
-            return '<a href="old.reddit.com/%s">%d score, %d comments, %s</a>' % \
-                        (url, self.submission.score, comments, timestamp)
         def insert(submission):
             db['shown'].insert(dict(userid=self.user_id,
                               subreddit=str(self.subreddit),
                               submission=str(submission.id)))
+
         # Prepare text and snippet earlier, so it is ready to use and messages come at the same time
-        text = "[%s](%s)" % (self.submission.title, self.submission.url)
-        snippet = make_snippet()
+        text_message = makeMessage(self.submission)
+        snippet = makeSnippet(self.submission)
+
+        # Send messages
         context.bot.sendMessage(chat_id=self.chat_id,
-                        text=text,
+                        text=text_message,
                         parse_mode=ParseMode.MARKDOWN)
 
-        # send short link to reddit, no preview. also keyboard to continue
+        # Send short link to reddit, no preview. also keyboard to continue
         context.bot.sendMessage(chat_id=self.chat_id,
                         text=snippet,
                         parse_mode=ParseMode.HTML,
                         disable_web_page_preview=True)
 
         insert(self.submission)
-        logger.info("Shown https://redd.it/%s to %s" % (self.submission.id, self.user_id))
+        logger.info("Shown: https://redd.it/%s to user: %s" % (self.submission.id, self.user_id))
 
 
 if __name__ == "__main__":
