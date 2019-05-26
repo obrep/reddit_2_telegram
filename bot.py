@@ -45,12 +45,12 @@ class RedditBot():
         # Handlers check the update in the order they were added
         # (So the errors etc. should be last)
         dispatcher.add_handler(CommandHandler('start', self.start))
+        dispatcher.add_handler(CommandHandler('joke', self.serveJoke))
+        dispatcher.add_handler(CommandHandler('meme', self.serveMeme))
         dispatcher.add_handler(CommandHandler('help', self.help))
         dispatcher.add_handler(CommandHandler('stats', self.stats))
         dispatcher.add_handler(CommandHandler('userstats', self.userstats))
-        # dispatcher.add_handler(MessageHandler(Filters.text, self.echo))
         dispatcher.add_handler(MessageHandler(Filters.text, self.fetch))
-        # dispatcher.add_error_handler(ErrorHandler(self.error_callback))
         dispatcher.add_handler(MessageHandler(Filters.command, self.unknown))
 
 
@@ -64,10 +64,33 @@ class RedditBot():
         # Start the bot
         updater.start_polling()
         logger.info("RedditBot started polling.")
+    
+    # Set methods
+    def set_message(self, update):
+        self.message = update.message.text
+
+    def set_chat_id(self, update):
+        self.chat_id = update.message.chat_id
+
+    def set_user_id(self, update):
+        self.user_id = update.message.from_user.id
 
     # Commands actions
     def start(self, update, context):
         context.bot.send_message(chat_id=update.message.chat_id, text="Hello. I'm a bot, please talk to me!")
+    
+    def serveJoke(self, update, context):
+        logger.info("Received joke command")
+        self.get_submission('jokes')
+        context.bot.send_message(chat_id=update.message.chat_id, text=self.submission.title)
+        context.bot.send_message(chat_id=update.message.chat_id, text=self.submission.selftext)
+    
+    def serveMeme(self, update, context):
+        logger.info("Received meme command")
+        self.get_submission('memes')
+        context.bot.sendPhoto(chat_id=update.message.chat_id,
+                        photo=self.submission.url)
+
 
     def help(self, update, context):
         context.bot.send_message(chat_id=update.message.chat_id, text="Hello. These are the available options:")
@@ -95,6 +118,11 @@ class RedditBot():
         unknown_msg = "Sorry, I didn't understand that command."
         context.bot.send_message(chat_id=update.message.chat_id, text=unknown_msg)
 
+    def error_callback(self, update, context):
+        logger.warning('Update "%s" caused error "%s"', update, context.error)
+
+
+    # Methods used to serve content
     def fetch(self, update, context):
         logger.info("Received message: '%s' (fetch)", update.message.text)
 
@@ -106,18 +134,6 @@ class RedditBot():
         if self.subreddit is not None:
             self.get_submission()
             self.show_submission(update, context)
-
-    def error_callback(self, update, context):
-        logger.warning('Update "%s" caused error "%s"', update, context.error)
-
-    def set_message(self, update):
-        self.message = update.message.text
-
-    def set_chat_id(self, update):
-        self.chat_id = update.message.chat_id
-
-    def set_user_id(self, update):
-        self.user_id = update.message.from_user.id
 
     def set_subreddit(self, update, context):
         name = update.message.text
@@ -131,20 +147,22 @@ class RedditBot():
             self.subreddit = None
             logger.warning("Invalid /r/%s" % name)
             
-    def get_submission(self):
-        for submission in reddit.subreddit(self.subreddit).hot(limit=10):
-            if db['shown'].find_one(userid=self.user_id, submission=submission.id) is None:
+    def get_submission(self, subreddit=None):
+        if subreddit is None:
+            subreddit = self.subreddit
+
+        for submission in reddit.subreddit(subreddit).hot(limit=10):
+            if db['shown'].find_one(userid=self.user_id,
+             submission=submission.id) is None and not submission.stickied:
                 self.submission = submission
-                break
-    
-        logger.info("Fetched from /r/%s" % self.subreddit)
-
-    def show_submission(self, update, context):
-
-        def insert(submission):
-            db['shown'].insert(dict(userid=self.user_id,
+                db['shown'].insert(dict(userid=self.user_id,
                               subreddit=str(self.subreddit),
                               submission=str(submission.id)))
+                break
+    
+        logger.info("Fetched from /r/%s" % subreddit)
+
+    def show_submission(self, update, context, type=None):
 
         # Prepare text and snippet earlier, so it is ready to use and messages come at the same time
         text_message = makeMessage(self.submission)
