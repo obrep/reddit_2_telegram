@@ -33,8 +33,8 @@ class RedditBot():
     Creates and mantains connection with Telegram.
     Provides content from Reddit through Telegram chat.
 
-    Handles multiple commands (e.g. \start).
-    Subreddits can be chosen using commands.
+    Handles multiple commands (e.g. \start, \start).
+    Messages that are not commands are treated as subreddit names.
     """
 
     def __init__(self):
@@ -53,7 +53,6 @@ class RedditBot():
         dispatcher.add_handler(CommandHandler('userstats', self.userstats))
         dispatcher.add_handler(MessageHandler(Filters.text, self.fetch))
         dispatcher.add_handler(MessageHandler(Filters.command, self.unknown))
-
 
         # Initial values of parameters
         self.message = ''
@@ -96,11 +95,6 @@ class RedditBot():
     def help(self, update, context):
         context.bot.send_message(chat_id=update.message.chat_id, text=help_msg)
 
-    def echo(self, update, context):
-        logger.info("Received message: '%s' (echo)", update.message.text)
-        logger.info(update)
-        context.bot.send_message(chat_id=update.message.chat_id, text=update.message.text)
-
     def stats(self, update, context):
         shown_count = len(db['shown'])
         users_count = len(list(db['shown'].distinct('userid')))
@@ -121,7 +115,6 @@ class RedditBot():
 
     def error_callback(self, update, context):
         logger.warning('Update "%s" caused error "%s"', update, context.error)
-
 
     # Methods used to serve content
     def fetch(self, update, context):
