@@ -1,21 +1,21 @@
 import logging
 import os
+import sys
 # Dataset for storing information about already sent submissions
 import dataset
 # Telegram communication
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram import ParseMode
-from helpers import * 
 # Python Reddit API Wrapper
 import praw
 # Formatting functions
 from helpers import * 
+
+
 # Logger setup
-
-
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO,
-                    filename='telebot.log')
+                    stream=sys.stdout)
 
 logger = logging.getLogger(__name__)
 
