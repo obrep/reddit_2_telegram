@@ -1,7 +1,8 @@
 import logging
 import tokens
 import sys
-# import dataset
+# Dataset for storing information about already sent submissions
+import dataset
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram import ParseMode
 from helpers import * # getTimeAgo
@@ -19,6 +20,9 @@ logger = logging.getLogger(__name__)
 reddit = praw.Reddit(client_id = tokens.client_id,
                     client_secret = tokens.client_secret,
                     user_agent = tokens.user_agent)
+
+# Connect to database
+db = dataset.connect('sqlite:///:memory:')
 
 class RedditBot():
     """
@@ -82,13 +86,12 @@ class RedditBot():
         self.set_message(update)
         self.set_chat_id(update)
         self.set_user_id(update)
-        self.set_subreddit(update)
+        self.set_subreddit(update, context)
 
         if self.subreddit is not None:
             self.get_submission()
             self.show_submission(update, context)
 
-    
     def error_callback(self, update, context):
         logger.warning('Update "%s" caused error "%s"', update, context.error)
 
@@ -101,15 +104,23 @@ class RedditBot():
     def set_user_id(self, update):
         self.user_id = update.message.from_user.id
 
-    def set_subreddit(self, update):
-        self.subreddit = update.message.text
-
+    def set_subreddit(self, update, context):
+        name = update.message.text
+        try:
+            logger.info("Subreddit set to %s" % reddit.subreddit(name).display_name)
+            self.subreddit = name
+        except:  # to-do: specify exceptions
+            context.bot.sendMessage(chat_id=self.chat_id,
+                                    text="Invalid subreddit chosen. /r/{} does not exist.Please try another one, or one of the predefined commands (\\help for full list).".format(name))
+            self.subreddit = None
+            logger.warning("Invalid /r/%s" % name)
+            
     def get_submission(self):
-        # self.submission = reddit.subreddit(self.subreddit).hot(limit=1).submission
-        for submission in reddit.subreddit(self.subreddit).hot(limit=1):
-            self.submission = submission
-
-
+        for submission in reddit.subreddit(self.subreddit).hot(limit=10):
+            if db['shown'].find_one(userid=self.user_id, submission=submission.id) is None:
+                self.submission = submission
+                break
+    
         logger.info("Fetched from /r/%s" % self.subreddit)
 
     def show_submission(self, update, context):
@@ -120,36 +131,25 @@ class RedditBot():
             timestamp = getTimeAgo(self.submission.created_utc)
             return '<a href="old.reddit.com/%s">%d score, %d comments, %s</a>' % \
                         (url, self.submission.score, comments, timestamp)
-
+        def insert(submission):
+            db['shown'].insert(dict(userid=self.user_id,
+                              subreddit=str(self.subreddit),
+                              submission=str(submission.id)))
+        # Prepare text and snippet earlier, so it is ready to use and messages come at the same time
         text = "[%s](%s)" % (self.submission.title, self.submission.url)
+        snippet = make_snippet()
         context.bot.sendMessage(chat_id=self.chat_id,
                         text=text,
                         parse_mode=ParseMode.MARKDOWN)
 
         # send short link to reddit, no preview. also keyboard to continue
         context.bot.sendMessage(chat_id=self.chat_id,
-                        text=make_snippet(),
+                        text=snippet,
                         parse_mode=ParseMode.HTML,
                         disable_web_page_preview=True)
 
-
-        logger.info("Shown https://redd.it/%s" % self.submission.id)
-
-    # def hello(bot, update):
-    # 	update.message.reply_text(
-    # 		'Hello {}'.format(update.message.from_user.first_name))
-
-    # start_handler = CommandHandler('start', start)
-    # hello_handler = CommandHandler('hello', hello)
-
-    # updater = Updater(token=tokens.telegram_token, use_context=True)
-    # dispatcher = updater.dispatcher
-
-    # dispatcher.add_handler(hello_handler)
-    # dispatcher.add_handler(start_handler)
-
-
-# updater.idle()
+        insert(self.submission)
+        logger.info("Shown https://redd.it/%s to %s" % (self.submission.id, self.user_id))
 
 
 if __name__ == "__main__":
