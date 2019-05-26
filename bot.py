@@ -1,25 +1,28 @@
 import logging
-import tokens
-import sys
+import os
 # Dataset for storing information about already sent submissions
 import dataset
+# Telegram communication
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram import ParseMode
-from helpers import * # getTimeAgo
-#Python Reddit API Wrapper
+from helpers import * 
+# Python Reddit API Wrapper
 import praw
-
+# Formatting functions
+from helpers import * 
 # Logger setup
+
+
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO,
-                    stream=sys.stdout)
+                    filename='telebot.log')
 
 logger = logging.getLogger(__name__)
 
 # Create reddit wrapper object
-reddit = praw.Reddit(client_id = tokens.client_id,
-                    client_secret = tokens.client_secret,
-                    user_agent = tokens.user_agent)
+reddit = praw.Reddit(client_id = os.environ['REDDIT_ID'],
+                    client_secret = os.environ['REDDIT_SECRET'],
+                    user_agent = os.environ['REDDIT_AGENT'])
 
 # Connect to database
 db = dataset.connect('sqlite:///:memory:')
@@ -35,7 +38,7 @@ class RedditBot():
 
     def __init__(self):
         # Create useful objects
-        updater = Updater(token=tokens.telegram_token, use_context=True)
+        updater = Updater(token=os.environ['TELEGRAM_TOKEN'], use_context=True)
         dispatcher = updater.dispatcher
 
         # Add Handlers
