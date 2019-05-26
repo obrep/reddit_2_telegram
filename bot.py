@@ -44,6 +44,7 @@ class RedditBot():
         dispatcher.add_handler(CommandHandler('start', self.start))
         dispatcher.add_handler(CommandHandler('help', self.help))
         dispatcher.add_handler(CommandHandler('stats', self.stats))
+        dispatcher.add_handler(CommandHandler('userstats', self.userstats))
         # dispatcher.add_handler(MessageHandler(Filters.text, self.echo))
         dispatcher.add_handler(MessageHandler(Filters.text, self.fetch))
         # dispatcher.add_error_handler(ErrorHandler(self.error_callback))
@@ -73,8 +74,18 @@ class RedditBot():
         logger.info(update)
         context.bot.send_message(chat_id=update.message.chat_id, text=update.message.text)
 
-    def stats(self):
-        pass
+    def stats(self, update, context):
+        shown_count = len(db['shown'])
+        users_count = len(list(db['shown'].distinct('userid')))
+        stats_msg = "So far, I\'ve shown %d submissions to %d users." % (shown_count, users_count)
+        context.bot.sendMessage(chat_id=update.message.chat_id, text=stats_msg)
+        logger.info("Presented stats globally %s" % stats_msg)
+    
+    def userstats(self, update, context):
+        shown_count = db['shown'].count(userid=self.user_id)
+        stats_msg = "So far, I\'ve shown you %d submissions." % shown_count
+        context.bot.sendMessage(chat_id=update.message.chat_id, text=stats_msg)
+        logger.info("Presented stats to user %s: %s" % (self.user_id, stats_msg))
 
     def unknown(self, update, context):
         logger.info("Received Unknown command: '%s'", update.message.text)
