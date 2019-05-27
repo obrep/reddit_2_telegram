@@ -132,6 +132,12 @@ class RedditBot():
 
     def set_subreddit(self, update, context):
         sub = update.message.text
+        # Test if provided name is correctly formatted
+        if not sub.isalpha():
+            wrong_sub_name_msg = "Provided subreddit name is not correct, it must contain only characters, without spaces, /, etc. Please try again :)"
+            context.bot.sendMessage(chat_id=self.chat_id,
+                        text=wrong_sub_name_msg)
+            return
         
         # Test if subreddit exists
         try:
