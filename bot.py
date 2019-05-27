@@ -138,6 +138,7 @@ class RedditBot():
             wrong_sub_name_msg = "Provided subreddit name is not correct, it must contain only characters, without spaces, /, etc. Please try again :)"
             context.bot.sendMessage(chat_id=self.chat_id,
                         text=wrong_sub_name_msg)
+            self.subreddit = None
             return
         
         # Test if subreddit exists
@@ -159,7 +160,7 @@ class RedditBot():
             
     def get_submission(self, sub=None):
         if sub is not None:
-            sub = reddit.subreddit(sub)
+            self.subreddit = reddit.subreddit(sub)
         
         for submission in self.subreddit.hot():
             if db['shown'].find_one(userid=self.user_id, submission=submission.id) is None and not submission.stickied:
@@ -169,7 +170,7 @@ class RedditBot():
                               submission=str(submission.id)))
                 break
     
-        logger.info("Fetched from /r/%s" % sub)
+        logger.info("Fetched from /r/%s" % self.subreddit.display_name)
 
     def show_submission(self, update, context, type=None):
 
