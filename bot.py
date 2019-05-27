@@ -150,6 +150,7 @@ class RedditBot():
             exception_msg= "/r/{} could not be reached. Please try another subreddit, or one of the predefined commands (/help for full list).".format(sub)
             context.bot.sendMessage(chat_id=self.chat_id,
                                     text=exception_msg)
+            self.subreddit = None
             logger.warning("Error when setting subreddit. Invalid /r/%s" % sub)
             return
         
