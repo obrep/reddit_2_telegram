@@ -8,6 +8,8 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram import ParseMode
 # Python Reddit API Wrapper
 import praw
+# Error handling
+from prawcore.exceptions import Redirect
 # Formatting functions
 from helpers import * 
 from messages import *
@@ -110,8 +112,7 @@ class RedditBot():
 
     def unknown(self, update, context):
         logger.info("Received Unknown command: '%s'", update.message.text)
-        unknown_msg = "Sorry, I didn't understand that command."
-        context.bot.send_message(chat_id=update.message.chat_id, text=unknown_msg)
+        context.bot.send_message(chat_id=update.message.chat_id, text=unknown_command_msg)
 
     def error_callback(self, update, context):
         logger.warning('Update "%s" caused error "%s"', update, context.error)
@@ -130,22 +131,30 @@ class RedditBot():
             self.show_submission(update, context)
 
     def set_subreddit(self, update, context):
-        name = update.message.text
+        sub = update.message.text
+        
+        # Test if subreddit exists
         try:
-            logger.info("Subreddit set to %s" % reddit.subreddit(name).display_name)
-            self.subreddit = name
-        except:  # to-do: specify exceptions
-            exception_msg= "Invalid subreddit chosen. /r/{} does not exist.Please try another one, or one of the predefined commands (\\help for full list).".format(name)
+            reddit.subreddit(sub).id
+        
+        # If the subreddit does not exist log it and inform user
+        except Redirect:
+            exception_msg= "/r/{} could not be reached. Please try another subreddit, or one of the predefined commands (/help for full list).".format(sub)
             context.bot.sendMessage(chat_id=self.chat_id,
                                     text=exception_msg)
-            self.subreddit = None
-            logger.warning("Invalid /r/%s" % name)
+            logger.warning("Error when setting subreddit. Invalid /r/%s" % sub)
+            return
+        
+        # Finally, set the subreddit 
+        self.subreddit = reddit.subreddit(sub)
+        logger.info("Subreddit set to r/%s" % sub)
+
             
     def get_submission(self, subreddit=None):
         if subreddit is None:
             subreddit = self.subreddit
 
-        for submission in reddit.subreddit(subreddit).hot(limit=10):
+        for submission in reddit.subreddit(subreddit).hot():
             if db['shown'].find_one(userid=self.user_id,
              submission=submission.id) is None and not submission.stickied:
                 self.submission = submission
