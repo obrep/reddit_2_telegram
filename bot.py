@@ -9,7 +9,7 @@ from telegram import ParseMode
 # Python Reddit API Wrapper
 import praw
 # Error handling
-from prawcore.exceptions import Redirect
+from prawcore.exceptions import Redirect, NotFound
 # Formatting functions
 from helpers import * 
 from messages import *
@@ -119,7 +119,7 @@ class RedditBot():
 
     # Methods used to serve content
     def fetch(self, update, context):
-        logger.info("Received message: '%s' (fetch)", update.message.text)
+        logger.info("Received message: '%s'", update.message.text)
 
         self.set_message(update)
         self.set_chat_id(update)
@@ -134,6 +134,7 @@ class RedditBot():
         sub = update.message.text
         # Test if provided name is correctly formatted
         if not sub.isalpha():
+            logger.warning("Invalid subname provided: %s" % sub)
             wrong_sub_name_msg = "Provided subreddit name is not correct, it must contain only characters, without spaces, /, etc. Please try again :)"
             context.bot.sendMessage(chat_id=self.chat_id,
                         text=wrong_sub_name_msg)
@@ -144,7 +145,7 @@ class RedditBot():
             reddit.subreddit(sub).id
         
         # If the subreddit does not exist log it and inform user
-        except Redirect:
+        except (Redirect, NotFound):
             exception_msg= "/r/{} could not be reached. Please try another subreddit, or one of the predefined commands (/help for full list).".format(sub)
             context.bot.sendMessage(chat_id=self.chat_id,
                                     text=exception_msg)
@@ -156,20 +157,19 @@ class RedditBot():
         logger.info("Subreddit set to r/%s" % sub)
 
             
-    def get_submission(self, subreddit=None):
-        if subreddit is None:
-            subreddit = self.subreddit
-
-        for submission in reddit.subreddit(subreddit).hot():
-            if db['shown'].find_one(userid=self.user_id,
-             submission=submission.id) is None and not submission.stickied:
+    def get_submission(self, sub=None):
+        if sub is not None:
+            sub = reddit.subreddit(sub)
+        
+        for submission in self.subreddit.hot():
+            if db['shown'].find_one(userid=self.user_id, submission=submission.id) is None and not submission.stickied:
                 self.submission = submission
                 db['shown'].insert(dict(userid=self.user_id,
-                              subreddit=str(self.subreddit),
+                              subreddit=str(self.subreddit.display_name),
                               submission=str(submission.id)))
                 break
     
-        logger.info("Fetched from /r/%s" % subreddit)
+        logger.info("Fetched from /r/%s" % sub)
 
     def show_submission(self, update, context, type=None):
 
@@ -188,7 +188,6 @@ class RedditBot():
                         parse_mode=ParseMode.HTML,
                         disable_web_page_preview=True)
 
-        insert(self.submission)
         logger.info("Shown: https://redd.it/%s to user: %s" % (self.submission.id, self.user_id))
 
 
